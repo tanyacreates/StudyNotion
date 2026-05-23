@@ -11,19 +11,30 @@ try {
     // ignore — best-effort
 }
 
+// Cache the connection across serverless invocations (Vercel reuses the module
+// between warm invocations, so we avoid opening a new connection every time).
+let connection = null;
 
 exports.connectDB = () => {
-    mongoose.connect(process.env.DATABASE_URL, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    })
+    if (connection) return connection;
+
+    connection = mongoose
+        .connect(process.env.DATABASE_URL, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        })
         .then(() => {
             console.log('Database connected succcessfully');
+            return mongoose.connection;
         })
-        .catch(error => {
-            console.log(`Error while connecting server with Database`);
+        .catch((error) => {
+            console.log('Error while connecting server with Database');
             console.log(error);
-            process.exit(1);
-        })
-};
+            connection = null; // allow a retry on the next invocation
+            // NOTE: do NOT process.exit() or rethrow here — process.exit is fatal in
+            // serverless, and rethrowing on this fire-and-forget call would create an
+            // unhandled rejection. Per-request queries surface their own errors instead.
+        });
 
+    return connection;
+};

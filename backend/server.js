@@ -18,7 +18,7 @@ const paymentRoutes = require('./routes/payments');
 const courseRoutes = require('./routes/course');
 
 
-// middleware 
+// middleware
 app.use(express.json()); // to parse json body
 app.use(cookieParser());
 app.use(
@@ -36,12 +36,6 @@ app.use(
 )
 
 
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-    console.log(`Server Started on PORT ${PORT}`);
-});
-
 // connections
 connectDB();
 cloudinaryConnect();
@@ -53,13 +47,25 @@ app.use('/api/v1/payment', paymentRoutes);
 app.use('/api/v1/course', courseRoutes);
 
 
-
-
 // Default Route
 app.get('/', (req, res) => {
-    // console.log('Your server is up and running..!');
     res.send(`<div>
-    This is Default Route  
+    This is Default Route
     <p>Everything is OK</p>
     </div>`);
 })
+
+
+const PORT = process.env.PORT || 5000;
+
+// Only start a listening server in non-serverless (local) environments.
+// On Vercel the platform invokes the exported app as a serverless function,
+// so calling app.listen() there is incorrect and causes the function to crash.
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`Server Started on PORT ${PORT}`);
+    });
+}
+
+// Export the app so Vercel's @vercel/node runtime can use it as the handler.
+module.exports = app;
