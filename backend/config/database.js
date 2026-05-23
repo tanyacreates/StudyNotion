@@ -18,23 +18,35 @@ let connection = null;
 exports.connectDB = () => {
     if (connection) return connection;
 
-    connection = mongoose
-        .connect(process.env.DATABASE_URL, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        })
-        .then(() => {
-            console.log('Database connected succcessfully');
-            return mongoose.connection;
-        })
-        .catch((error) => {
-            console.log('Error while connecting server with Database');
-            console.log(error);
-            connection = null; // allow a retry on the next invocation
-            // NOTE: do NOT process.exit() or rethrow here — process.exit is fatal in
-            // serverless, and rethrowing on this fire-and-forget call would create an
-            // unhandled rejection. Per-request queries surface their own errors instead.
-        });
+    // Guard: missing URI would make mongoose.connect throw SYNCHRONOUSLY, which on
+    // Vercel crashes the whole function at load (FUNCTION_INVOCATION_FAILED).
+    if (!process.env.DATABASE_URL) {
+        console.error('DATABASE_URL is not set — skipping DB connect. Set it in Vercel env vars.');
+        return null;
+    }
+
+    try {
+        connection = mongoose
+            .connect(process.env.DATABASE_URL, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+            })
+            .then(() => {
+                console.log('Database connected succcessfully');
+                return mongoose.connection;
+            })
+            .catch((error) => {
+                console.log('Error while connecting server with Database');
+                console.log(error);
+                connection = null; // allow a retry on the next invocation
+                // NOTE: never process.exit() (fatal in serverless) or rethrow on this
+                // fire-and-forget call (would be an unhandled rejection).
+            });
+    } catch (error) {
+        // synchronous failure (e.g. bad/missing URI) — keep the function alive
+        console.error('connectDB synchronous error:', error.message);
+        connection = null;
+    }
 
     return connection;
 };
