@@ -13,11 +13,14 @@ function RatingStars({ Review_Count, Star_Size }) {
   })
 
   useEffect(() => {
-    const wholeStars = Math.floor(Review_Count) || 0
+    // clamp to the valid 0..5 range so malformed data can never render hundreds of stars
+    const rating = Math.min(5, Math.max(0, Number(Review_Count) || 0))
+    const wholeStars = Math.floor(rating)
+    const hasHalf = !Number.isInteger(rating)
     SetStarCount({
       full: wholeStars,
-      half: Number.isInteger(Review_Count) ? 0 : 1,
-      empty: Number.isInteger(Review_Count) ? 5 - wholeStars : 4 - wholeStars,
+      half: hasHalf ? 1 : 0,
+      empty: 5 - wholeStars - (hasHalf ? 1 : 0),
     })
   }, [Review_Count])
 

@@ -53,6 +53,28 @@ exports.capturePayment = async (req, res) => {
         }
     }
 
+    // DEV-MODE fallback: if Razorpay isn't configured with real keys, enroll the
+    // student directly so the purchase flow is testable without a payment gateway.
+    const razorpayConfigured =
+        process.env.RAZORPAY_KEY &&
+        process.env.RAZORPAY_KEY !== 'rzp_test_placeholder' &&
+        process.env.RAZORPAY_SECRET &&
+        process.env.RAZORPAY_SECRET !== 'placeholder_secret';
+
+    if (!razorpayConfigured) {
+        try {
+            await enrollStudents(coursesId, userId, null);
+            return res.status(200).json({
+                success: true,
+                devEnroll: true,
+                message: 'Enrolled directly (Razorpay not configured — dev mode).',
+            });
+        } catch (error) {
+            console.log('Dev-mode enrollment error:', error);
+            return res.status(500).json({ success: false, message: 'Could not enroll (dev mode)' });
+        }
+    }
+
     // create order
     const currency = "INR";
     const options = {
@@ -113,7 +135,8 @@ exports.verifyPayment = async (req, res) => {
 const enrollStudents = async (courses, userId, res) => {
 
     if (!courses || !userId) {
-        return res.status(400).json({ success: false, message: "Please Provide data for Courses or UserId" });
+        if (res) return res.status(400).json({ success: false, message: "Please Provide data for Courses or UserId" });
+        throw new Error("Please Provide data for Courses or UserId");
     }
 
     for (const courseId of courses) {
@@ -126,7 +149,8 @@ const enrollStudents = async (courses, userId, res) => {
             )
 
             if (!enrolledCourse) {
-                return res.status(500).json({ success: false, message: "Course not Found" });
+                if (res) return res.status(500).json({ success: false, message: "Course not Found" });
+                throw new Error("Course not Found");
             }
             // console.log("Updated course: ", enrolledCourse)
 
@@ -151,17 +175,21 @@ const enrollStudents = async (courses, userId, res) => {
 
             // console.log("Enrolled student: ", enrolledStudent)
 
-            // Send an email notification to the enrolled student
-            const emailResponse = await mailSender(
-                enrolledStudent.email,
-                `Successfully Enrolled into ${enrolledCourse.courseName}`,
-                courseEnrollmentEmail(enrolledCourse.courseName, `${enrolledStudent.firstName}`)
-            )
-            // console.log("Email Sent Successfully", emailResponse);
+            // Send an email notification to the enrolled student (best-effort)
+            try {
+                await mailSender(
+                    enrolledStudent.email,
+                    `Successfully Enrolled into ${enrolledCourse.courseName}`,
+                    courseEnrollmentEmail(enrolledCourse.courseName, `${enrolledStudent.firstName}`)
+                )
+            } catch (mailErr) {
+                console.log('Enrollment email failed (enrollment still succeeded):', mailErr.message);
+            }
         }
         catch (error) {
             console.log(error);
-            return res.status(500).json({ success: false, message: error.message });
+            if (res) return res.status(500).json({ success: false, message: error.message });
+            throw error;
         }
     }
 

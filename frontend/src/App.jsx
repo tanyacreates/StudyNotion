@@ -31,6 +31,7 @@ import Instructor from './components/core/Dashboard/Instructor';
 import Cart from "./components/core/Dashboard/Cart/Cart";
 import EnrolledCourses from "./components/core/Dashboard/EnrolledCourses";
 import Wishlist from "./components/core/Dashboard/Wishlist";
+import PurchaseHistory from "./components/core/Dashboard/PurchaseHistory";
 import AddCourse from "./components/core/Dashboard/AddCourse/AddCourse";
 import Insights from "./components/core/Dashboard/Insights";
 
@@ -156,6 +157,7 @@ function App() {
             <>
               <Route path="dashboard/cart" element={<Cart />} />
               <Route path="dashboard/wishlist" element={<Wishlist />} />
+              <Route path="dashboard/purchase-history" element={<PurchaseHistory />} />
               <Route path="dashboard/enrolled-courses" element={<EnrolledCourses />} />
             </>
           )}

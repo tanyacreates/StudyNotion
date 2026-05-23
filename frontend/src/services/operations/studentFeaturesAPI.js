@@ -47,6 +47,16 @@ export async function buyCourse(token, coursesId, userDetails, navigate, dispatc
             throw new Error(orderResponse.data.message);
         }
 
+        // DEV-MODE: backend enrolled directly because Razorpay isn't configured.
+        // Skip the Razorpay checkout entirely.
+        if (orderResponse.data.devEnroll) {
+            toast.success("Enrolled successfully! (dev mode — no payment gateway)");
+            navigate("/dashboard/enrolled-courses");
+            dispatch(resetCart());
+            toast.dismiss(toastId);
+            return;
+        }
+
         const RAZORPAY_KEY = import.meta.env.VITE_APP_RAZORPAY_KEY;
         // console.log("RAZORPAY_KEY...", RAZORPAY_KEY);
 

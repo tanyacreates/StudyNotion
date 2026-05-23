@@ -14,6 +14,7 @@ import ReviewSlider from '../components/common/ReviewSlider'
 import Course_Slider from '../components/core/Catalog/Course_Slider'
 
 import { getCatalogPageData } from '../services/operations/pageAndComponentData'
+import { fetchCourseCategories } from '../services/operations/courseDetailsAPI'
 
 import { MdOutlineRateReview } from 'react-icons/md'
 import { FaArrowRight } from "react-icons/fa"
@@ -67,12 +68,25 @@ const Home = () => {
 
     // get courses data
     const [CatalogPageData, setCatalogPageData] = useState(null);
-    const categoryID = "6506c9dff191d7ffdb4a3fe2" // hard coded
+    const [categoryID, setCategoryID] = useState(null);
     const dispatch = useDispatch();
+
+    // Pick a real category dynamically (the first available one) instead of a
+    // hard-coded id that may not exist in this database.
+    useEffect(() => {
+        const pickCategory = async () => {
+            const categories = await fetchCourseCategories();
+            if (Array.isArray(categories) && categories.length > 0) {
+                // prefer a category that actually has courses, else fall back to the first
+                const withCourses = categories.find((c) => (c.courses?.length || 0) > 0);
+                setCategoryID((withCourses || categories[0])._id);
+            }
+        };
+        pickCategory();
+    }, []);
 
     useEffect(() => {
         const fetchCatalogPageData = async () => {
-
             const result = await getCatalogPageData(categoryID, dispatch);
             setCatalogPageData(result);
             // console.log("page data ==== ",CatalogPageData);

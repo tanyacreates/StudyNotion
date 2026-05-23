@@ -41,14 +41,33 @@ exports.sendOTP = async (req, res) => {
         const name = email.split('@')[0].split('.').map(part => part.replace(/\d+/g, '')).join(' ');
         console.log(name);
 
-        // send otp in mail
-        await mailSender(email, 'OTP Verification Email', otpTemplate(otp, name));
-
-        // create an entry for otp in DB
+        // create an entry for otp in DB FIRST, so verification works even if the
+        // email transport hiccups (the OTP is also returned in the response below).
         const otpBody = await OTP.create({ email, otp });
         // console.log('otpBody - ', otpBody);
 
+        // When real SMTP isn't configured, print the OTP prominently so it can be
+        // used during local testing without a real inbox.
+        const realMailConfigured =
+            process.env.MAIL_USER &&
+            process.env.MAIL_USER !== 'placeholder@example.com' &&
+            process.env.MAIL_PASS &&
+            process.env.MAIL_PASS !== 'placeholder_app_password';
 
+        if (!realMailConfigured) {
+            console.log('\n==================== DEV OTP ====================');
+            console.log(`  Email : ${email}`);
+            console.log(`  OTP   : ${otp}   (valid for 5 minutes)`);
+            console.log('  (Real SMTP not configured — set MAIL_USER/MAIL_PASS to deliver to real inboxes.)');
+            console.log('================================================\n');
+        }
+
+        // send otp in mail (best-effort — don't fail signup if delivery fails)
+        try {
+            await mailSender(email, 'OTP Verification Email', otpTemplate(otp, name));
+        } catch (mailErr) {
+            console.log('OTP email delivery failed (OTP still created):', mailErr.message);
+        }
 
         // return response successfully
         res.status(200).json({
